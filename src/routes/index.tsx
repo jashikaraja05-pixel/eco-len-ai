@@ -130,7 +130,6 @@ const DEMO_ACCOUNTS = [
 
 function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [google, setGoogle] = useState(false);
@@ -139,7 +138,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
     e.preventDefault();
     try {
       if (password.length < 6) throw new Error("Password must be at least 6 characters.");
-      onLogin(mode === "signup" ? signUp(name.trim() || (email.split("@")[0] ?? "User"), email.trim(), password) : logIn(email.trim(), password));
+      onLogin(mode === "signup" ? signUp(email.split("@")[0] ?? "User", email.trim(), password) : logIn(email.trim(), password));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -147,13 +146,12 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border p-12 lg:flex">
-        <div className="bg-ocean absolute -left-32 -top-32 size-96 rounded-full opacity-20 blur-3xl" />
-        <div className="bg-ocean absolute -bottom-40 right-0 size-96 rounded-full opacity-15 blur-3xl" />
-        <div className="relative"><Brand /></div>
+      <div className="bg-ocean relative hidden flex-col justify-between overflow-hidden p-12 text-primary-foreground lg:flex">
+        <div className="absolute -right-24 -top-24 size-96 rounded-full bg-primary-foreground/20 blur-3xl" />
+        <div className="relative flex items-center gap-2 text-xl font-bold"><Leaf /> EcoLens AI</div>
         <div className="relative">
-          <h1 className="text-5xl font-bold leading-tight">Point. Scan.<br /><span className="text-gradient">Segregate right.</span></h1>
-          <p className="mt-4 max-w-md text-lg text-muted-foreground">AI vision that tells you exactly which bin every piece of waste belongs in.</p>
+          <h1 className="text-5xl font-bold leading-tight">Point. Scan.<br />Segregate right.</h1>
+          <p className="mt-4 max-w-md text-lg opacity-90">AI vision that tells you exactly which bin every piece of waste belongs in.</p>
           <ul className="mt-8 space-y-3">
             {[
               [Sparkles, "Instant AI classification with confidence scores"],
@@ -163,14 +161,14 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
             ].map(([Icon, t]) => {
               const I = Icon as typeof Leaf;
               return (
-                <li key={t as string} className="glass flex items-center gap-3 rounded-2xl px-4 py-3 text-sm">
-                  <span className="bg-ocean grid size-8 place-items-center rounded-lg text-primary-foreground"><I className="size-4" /></span>{t as string}
+                <li key={t as string} className="flex items-center gap-3 rounded-2xl border border-primary-foreground/30 bg-primary-foreground/15 px-4 py-3 text-sm backdrop-blur">
+                  <span className="grid size-8 place-items-center rounded-lg bg-primary-foreground/25"><I className="size-4" /></span>{t as string}
                 </li>
               );
             })}
           </ul>
         </div>
-        <p className="relative text-sm text-muted-foreground">Smart Waste Segregation · College Project</p>
+        <p className="relative text-sm opacity-80">Smart Waste Segregation · College Project</p>
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="glass fade-up w-full max-w-md rounded-3xl p-8">
@@ -186,7 +184,6 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           <h2 className="mt-6 text-2xl font-bold">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Track your segregation impact over time.</p>
           <form onSubmit={submit} className="mt-6 space-y-3">
-            {mode === "signup" && <Input className="h-11 rounded-xl" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />}
             <Input className="h-11 rounded-xl" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input className="h-11 rounded-xl" type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <Button type="submit" className="glow h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
