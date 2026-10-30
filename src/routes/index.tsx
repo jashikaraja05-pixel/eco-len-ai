@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { classifyWaste, type ScanResult } from "@/lib/classify.functions";
 import {
-  BINS, addScan, getHistory, getSession, logIn, setSession, signUp, stats, type Scan, type User,
+  BINS, addScan, googleLogin, getHistory, getSession, logIn, setSession, signUp, stats, type Scan, type User,
 } from "@/lib/eco-store";
 
 export const Route = createFileRoute("/")({
@@ -133,6 +133,12 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [google, setGoogle] = useState(false);
+  const [gEmail, setGEmail] = useState("");
+  const pickGoogle = (name: string, em: string) => {
+    setGoogle(false);
+    setGEmail("");
+    onLogin(googleLogin(name, em));
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +172,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           </form>
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
           <Button variant="outline" className="h-11 w-full rounded-xl" onClick={() => setGoogle(true)}>
-            <GoogleIcon /> Continue with Google Demo
+            <GoogleIcon /> Continue with Google
           </Button>
         </div>
       </div>
@@ -179,13 +185,20 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           </DialogHeader>
           <div className="divide-y rounded-2xl border">
             {DEMO_ACCOUNTS.map((a) => (
-              <button key={a.email} onClick={() => { setGoogle(false); onLogin({ ...a, provider: "google" }); }}
+              <button key={a.email} onClick={() => pickGoogle(a.name, a.email)}
                 className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-secondary">
                 <span className="bg-ocean grid size-9 place-items-center rounded-full text-sm font-bold text-primary-foreground">{a.name[0]}</span>
                 <span><span className="block text-sm font-medium">{a.name}</span><span className="block text-xs text-muted-foreground">{a.email}</span></span>
               </button>
             ))}
           </div>
+          <form onSubmit={(e) => { e.preventDefault(); const em = gEmail.trim().toLowerCase(); if (!/^[^\s@]+@gmail\.com$/.test(em)) { toast.error("Enter a valid Google (@gmail.com) address."); return; } pickGoogle(em.split("@")[0] ?? "User", em); }} className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Use another account</p>
+            <div className="flex gap-2">
+              <Input className="h-10 rounded-xl" type="email" placeholder="you@gmail.com" value={gEmail} onChange={(e) => setGEmail(e.target.value)} />
+              <Button type="submit" className="h-10 rounded-xl">Next</Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
