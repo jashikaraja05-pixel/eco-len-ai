@@ -33,7 +33,7 @@ function App() {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [history, setHistory] = useState<Scan[]>([]);
-  const [tab, setTab] = useState<Tab>("scan");
+  const [tab, setTab] = useState<Tab>("dashboard");
 
   useEffect(() => {
     const u = getSession();
@@ -46,7 +46,7 @@ function App() {
     setSession(u);
     setUser(u);
     setHistory(getHistory(u.email));
-    setTab("scan");
+    setTab("dashboard");
     toast.success(`Welcome, ${u.name}`);
   };
   const logout = () => {
@@ -89,8 +89,8 @@ function Brand() {
 
 function Nav({ tab, setTab, user, onLogout }: { tab: Tab; setTab: (t: Tab) => void; user: User; onLogout: () => void }) {
   const items: { id: Tab; label: string; icon: typeof Leaf }[] = [
-    { id: "scan", label: "Scan Waste", icon: ScanLine },
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "scan", label: "Scan Waste", icon: ScanLine },
     { id: "history", label: "History", icon: History },
     { id: "learn", label: "Learn Hub", icon: BookOpen },
   ];
@@ -145,34 +145,10 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="bg-ocean relative hidden flex-col justify-between overflow-hidden p-12 text-primary-foreground lg:flex">
-        <div className="absolute -right-24 -top-24 size-96 rounded-full bg-primary-foreground/20 blur-3xl" />
-        <div className="relative flex items-center gap-2 text-xl font-bold"><Leaf /> EcoLens AI</div>
-        <div className="relative">
-          <h1 className="text-5xl font-bold leading-tight">Point. Scan.<br />Segregate right.</h1>
-          <p className="mt-4 max-w-md text-lg opacity-90">AI vision that tells you exactly which bin every piece of waste belongs in.</p>
-          <ul className="mt-8 space-y-3">
-            {[
-              [Sparkles, "Instant AI classification with confidence scores"],
-              [Camera, "Upload a photo or scan live with your camera"],
-              [LayoutDashboard, "Personal dashboard tracking your eco impact"],
-              [BookOpen, "Learn the colour-coded bin rules"],
-            ].map(([Icon, t]) => {
-              const I = Icon as typeof Leaf;
-              return (
-                <li key={t as string} className="flex items-center gap-3 rounded-2xl border border-primary-foreground/30 bg-primary-foreground/15 px-4 py-3 text-sm backdrop-blur">
-                  <span className="grid size-8 place-items-center rounded-lg bg-primary-foreground/25"><I className="size-4" /></span>{t as string}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <p className="relative text-sm opacity-80">Smart Waste Segregation · College Project</p>
-      </div>
-      <div className="flex items-center justify-center p-6">
-        <div className="glass fade-up w-full max-w-md rounded-3xl p-8">
-          <div className="mb-4 lg:hidden"><Brand /></div>
+    <div className="bg-auth flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <div className="flex w-full justify-center">
+        <div className="fade-up w-full max-w-md rounded-3xl border border-border bg-popover p-6 shadow-xl sm:p-8">
+          <div className="mb-5 flex justify-center"><Brand /></div>
           <div className="grid grid-cols-2 rounded-full bg-muted p-1">
             {(["login", "signup"] as const).map((m) => (
               <button key={m} type="button" onClick={() => setMode(m)}
@@ -181,7 +157,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
               </button>
             ))}
           </div>
-          <h2 className="mt-6 text-2xl font-bold">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+          <h2 className="mt-6 text-xl font-bold sm:text-2xl">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Track your segregation impact over time.</p>
           <form onSubmit={submit} className="mt-6 space-y-3">
             <Input className="h-11 rounded-xl" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -463,6 +439,7 @@ function HistoryView({ history }: { history: Scan[] }) {
                   <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString()}</span>
                 </div>
                 <h3 className="mt-3 font-semibold">{h.item}</h3>
+                <p className="text-sm font-medium text-primary">{h.bin}</p>
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                   {h.steps.slice(0, 3).map((s, i) => <li key={i}>• {s}</li>)}
                 </ul>
