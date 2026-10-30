@@ -147,35 +147,54 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="bg-ocean relative hidden flex-col justify-between p-12 text-primary-foreground lg:flex">
-        <div className="flex items-center gap-2 text-xl font-bold"><Leaf /> EcoLens AI</div>
-        <div>
-          <h1 className="text-5xl font-bold leading-tight">Point. Scan.<br />Segregate right.</h1>
-          <p className="mt-4 max-w-md text-lg opacity-90">AI vision that tells you exactly which bin every piece of waste belongs in.</p>
+      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border p-12 lg:flex">
+        <div className="bg-ocean absolute -left-32 -top-32 size-96 rounded-full opacity-20 blur-3xl" />
+        <div className="bg-ocean absolute -bottom-40 right-0 size-96 rounded-full opacity-15 blur-3xl" />
+        <div className="relative"><Brand /></div>
+        <div className="relative">
+          <h1 className="text-5xl font-bold leading-tight">Point. Scan.<br /><span className="text-gradient">Segregate right.</span></h1>
+          <p className="mt-4 max-w-md text-lg text-muted-foreground">AI vision that tells you exactly which bin every piece of waste belongs in.</p>
+          <ul className="mt-8 space-y-3">
+            {[
+              [Sparkles, "Instant AI classification with confidence scores"],
+              [Camera, "Upload a photo or scan live with your camera"],
+              [LayoutDashboard, "Personal dashboard tracking your eco impact"],
+              [BookOpen, "Learn the colour-coded bin rules"],
+            ].map(([Icon, t]) => {
+              const I = Icon as typeof Leaf;
+              return (
+                <li key={t as string} className="glass flex items-center gap-3 rounded-2xl px-4 py-3 text-sm">
+                  <span className="bg-ocean grid size-8 place-items-center rounded-lg text-primary-foreground"><I className="size-4" /></span>{t as string}
+                </li>
+              );
+            })}
+          </ul>
         </div>
-        <p className="text-sm opacity-75">Smart Waste Segregation · College Project</p>
+        <p className="relative text-sm text-muted-foreground">Smart Waste Segregation · College Project</p>
       </div>
       <div className="flex items-center justify-center p-6">
         <div className="glass fade-up w-full max-w-md rounded-3xl p-8">
-          <div className="lg:hidden"><Brand /></div>
-          <h2 className="mt-4 text-2xl font-bold lg:mt-0">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+          <div className="mb-4 lg:hidden"><Brand /></div>
+          <div className="grid grid-cols-2 rounded-full bg-muted p-1">
+            {(["login", "signup"] as const).map((m) => (
+              <button key={m} type="button" onClick={() => setMode(m)}
+                className={`rounded-full py-2 text-sm font-semibold transition-all ${mode === m ? "bg-primary text-primary-foreground glow" : "text-muted-foreground hover:text-foreground"}`}>
+                {m === "login" ? "Log In" : "Sign Up"}
+              </button>
+            ))}
+          </div>
+          <h2 className="mt-6 text-2xl font-bold">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Track your segregation impact over time.</p>
-          <Button variant="outline" className="mt-6 h-11 w-full rounded-xl" onClick={() => setGoogle(true)}>
-            <GoogleIcon /> Continue with Google
-          </Button>
-          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
-          <form onSubmit={submit} className="space-y-3">
+          <form onSubmit={submit} className="mt-6 space-y-3">
             {mode === "signup" && <Input className="h-11 rounded-xl" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />}
             <Input className="h-11 rounded-xl" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input className="h-11 rounded-xl" type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <Button type="submit" className="h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
+            <Button type="submit" className="glow h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
           </form>
-          <p className="mt-5 text-center text-sm text-muted-foreground">
-            {mode === "login" ? "New here?" : "Already have an account?"}{" "}
-            <button className="font-semibold text-primary" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
-              {mode === "login" ? "Create account" : "Log in"}
-            </button>
-          </p>
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
+          <Button variant="outline" className="h-11 w-full rounded-xl" onClick={() => setGoogle(true)}>
+            <GoogleIcon /> Continue with Google Demo
+          </Button>
         </div>
       </div>
       <Dialog open={google} onOpenChange={setGoogle}>
