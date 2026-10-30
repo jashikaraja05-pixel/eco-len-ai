@@ -22,7 +22,7 @@ Reply with ONLY a JSON object: {"item": string, "category": one of the keys, "bi
 export const classifyWaste = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ image: z.string().startsWith("data:image/").max(8_000_000) }).parse(d))
   .handler(async ({ data }): Promise<ScanResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env['LOVABLE_API_KEY'];
     if (!apiKey) throw new Error("AI is not configured.");
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { streamText } = await import("ai");

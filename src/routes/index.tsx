@@ -139,7 +139,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
     e.preventDefault();
     try {
       if (password.length < 6) throw new Error("Password must be at least 6 characters.");
-      onLogin(mode === "signup" ? signUp(name.trim() || email.split("@")[0], email.trim(), password) : logIn(email.trim(), password));
+      onLogin(mode === "signup" ? signUp(name.trim() || email.split("@")[0] ?? "User", email.trim(), password) : logIn(email.trim(), password));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -268,7 +268,7 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
 
   const onFile = (f?: File) => {
     if (!f) return;
-    if (!f.type.startsWith("image/")) return toast.error("Please choose an image file.");
+    if (!f.type.startsWith("image/")) { toast.error("Please choose an image file."); return; }
     const r = new FileReader();
     r.onload = async () => { try { setImage(await shrink(r.result as string)); setResult(null); } catch (e) { toast.error((e as Error).message); } };
     r.readAsDataURL(f);
@@ -467,7 +467,7 @@ function Learn() {
     { tone: "bg-bin-red", icon: Cpu, title: "Red Bin", sub: "Hazardous & E-Waste", items: ["Aerosol spray cans", "Batteries", "Circuit boards & phones", "Chemical tins, paint"] },
     { tone: "bg-bin-black", icon: Trash2, title: "Black Bin", sub: "Residual Waste", items: ["Multi-layer wrappers", "Biscuit & chip packets", "Non-recyclable laminates", "Soiled tissues"] },
   ];
-  const [open, setOpen] = useState<string | null>(bins[0].title);
+  const [open, setOpen] = useState<string | null>("Green Bin");
   return (
     <section>
       <h1 className="text-3xl font-bold">Segregation Rules Hub</h1>
