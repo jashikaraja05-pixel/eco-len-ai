@@ -139,7 +139,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
     e.preventDefault();
     try {
       if (password.length < 6) throw new Error("Password must be at least 6 characters.");
-      onLogin(mode === "signup" ? signUp(name.trim() || email.split("@")[0] ?? "User", email.trim(), password) : logIn(email.trim(), password));
+      onLogin(mode === "signup" ? signUp(name.trim() || (email.split("@")[0] ?? "User"), email.trim(), password) : logIn(email.trim(), password));
     } catch (err) {
       toast.error((err as Error).message);
     }
