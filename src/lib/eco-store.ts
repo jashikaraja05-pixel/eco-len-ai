@@ -4,7 +4,7 @@ export type Scan = ScanResult & { id: string; image: string; createdAt: number }
 export type User = { email: string; name: string; provider: "email" | "google" };
 
 const SESSION = "ecolens.session";
-const USERS = "ecolens.users";
+const USERS = "ecolens_registered_users";
 const histKey = (email: string) => `ecolens.history.${email.toLowerCase()}`;
 
 function read<T>(key: string, fallback: T): T {
@@ -20,19 +20,31 @@ export const getSession = () => read<User | null>(SESSION, null);
 export const setSession = (u: User | null) =>
   u ? localStorage.setItem(SESSION, JSON.stringify(u)) : localStorage.removeItem(SESSION);
 
-type Account = { email: string; name: string; password: string };
+type Account = { email: string; name: string; password: string | null; provider?: "email" | "google" };
 export function signUp(name: string, email: string, password: string): User {
   const users = read<Account[]>(USERS, []);
   if (users.some((u) => u.email.toLowerCase() === email.toLowerCase()))
     throw new Error("An account with this email already exists.");
-  users.push({ name, email, password });
+  users.push({ name, email: email.toLowerCase(), password, provider: "email" });
   localStorage.setItem(USERS, JSON.stringify(users));
   return { name, email, provider: "email" };
 }
 export function logIn(email: string, password: string): User {
   const u = read<Account[]>(USERS, []).find((x) => x.email.toLowerCase() === email.toLowerCase());
-  if (!u || u.password !== password) throw new Error("Invalid email or password.");
+  if (!u || u.password === null || u.password !== password)
+    throw new Error("Account not registered or invalid password. Please sign up first.");
   return { name: u.name, email: u.email, provider: "email" };
+}
+
+export function googleLogin(name: string, email: string): User {
+  const users = read<Account[]>(USERS, []);
+  const em = email.toLowerCase();
+  const existing = users.find((x) => x.email.toLowerCase() === em);
+  if (!existing) {
+    users.push({ name, email: em, password: null, provider: "google" });
+    localStorage.setItem(USERS, JSON.stringify(users));
+  }
+  return { name: existing?.name ?? name, email: em, provider: "google" };
 }
 
 export const getHistory = (email: string) => read<Scan[]>(histKey(email), []);
