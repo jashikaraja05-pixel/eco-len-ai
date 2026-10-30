@@ -177,3 +177,4 @@
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @utility glow { box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent), 0 0 32px -6px color-mix(in oklab, var(--primary) 70%, transparent); }
 @utility text-gradient { background-image: var(--gradient-ocean); background-clip: text; color: transparent; }
+@utility bg-auth { background-image: linear-gradient(160deg, oklch(0.97 0.03 200), oklch(0.9 0.08 185) 55%, oklch(0.8 0.11 180)); }
