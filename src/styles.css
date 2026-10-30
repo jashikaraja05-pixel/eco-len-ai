@@ -69,31 +69,31 @@
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.975 0.012 190);
-  --foreground: oklch(0.24 0.035 230);
-  --card: oklch(1 0 0 / 0.75);
-  --card-foreground: oklch(0.24 0.035 230);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.035 230);
-  --primary: oklch(0.52 0.1 195);
-  --primary-foreground: oklch(0.99 0.01 180);
-  --secondary: oklch(0.93 0.04 170);
-  --secondary-foreground: oklch(0.3 0.06 200);
-  --muted: oklch(0.94 0.015 210);
-  --muted-foreground: oklch(0.5 0.03 230);
-  --accent: oklch(0.9 0.07 165);
-  --accent-foreground: oklch(0.28 0.06 200);
+  --background: oklch(0.16 0.03 245);
+  --foreground: oklch(0.96 0.015 190);
+  --card: oklch(0.24 0.035 230 / 0.55);
+  --card-foreground: oklch(0.96 0.015 190);
+  --popover: oklch(0.21 0.035 235);
+  --popover-foreground: oklch(0.96 0.015 190);
+  --primary: oklch(0.75 0.13 185);
+  --primary-foreground: oklch(0.16 0.03 245);
+  --secondary: oklch(0.3 0.05 205 / 0.6);
+  --secondary-foreground: oklch(0.9 0.06 170);
+  --muted: oklch(0.27 0.03 235);
+  --muted-foreground: oklch(0.7 0.03 215);
+  --accent: oklch(0.85 0.1 165);
+  --accent-foreground: oklch(0.16 0.03 245);
   --destructive: oklch(0.58 0.2 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.88 0.025 200);
-  --input: oklch(0.88 0.025 200);
-  --ring: oklch(0.52 0.1 195);
+  --border: oklch(0.8 0.08 190 / 0.16);
+  --input: oklch(0.8 0.08 190 / 0.2);
+  --ring: oklch(0.75 0.13 185);
   --bin-green: oklch(0.6 0.15 150);
   --bin-blue: oklch(0.55 0.15 245);
   --bin-red: oklch(0.58 0.2 27);
-  --bin-black: oklch(0.28 0.02 240);
-  --gradient-ocean: linear-gradient(135deg, oklch(0.42 0.09 215), oklch(0.6 0.11 185) 60%, oklch(0.82 0.1 165));
-  --shadow-soft: 0 20px 50px -20px color-mix(in oklab, var(--primary) 35%, transparent);
+  --bin-black: oklch(0.72 0.02 240);
+  --gradient-ocean: linear-gradient(135deg, oklch(0.55 0.12 215), oklch(0.72 0.13 185) 60%, oklch(0.86 0.11 165));
+  --shadow-soft: 0 20px 60px -24px color-mix(in oklab, var(--primary) 45%, transparent);
   --chart-1: oklch(0.6 0.15 150);
   --chart-2: oklch(0.55 0.15 245);
   --chart-3: oklch(0.58 0.2 27);
@@ -158,8 +158,9 @@
 @layer base {
   body {
     font-family: var(--font-sans);
-    background-image: radial-gradient(circle at 10% 0%, oklch(0.9 0.06 175 / 0.6), transparent 40%),
-      radial-gradient(circle at 90% 20%, oklch(0.88 0.06 210 / 0.5), transparent 40%);
+    background-image: radial-gradient(circle at 10% 0%, oklch(0.6 0.12 185 / 0.25), transparent 40%),
+      radial-gradient(circle at 90% 30%, oklch(0.6 0.12 220 / 0.2), transparent 45%),
+      linear-gradient(180deg, oklch(0.18 0.035 240), oklch(0.13 0.025 250));
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -175,3 +176,5 @@
 @utility bg-ocean { background-image: var(--gradient-ocean); }
 @utility fade-up { animation: fadeUp 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@utility glow { box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent), 0 0 32px -6px color-mix(in oklab, var(--primary) 70%, transparent); }
+@utility text-gradient { background-image: var(--gradient-ocean); background-clip: text; color: transparent; }
