@@ -91,7 +91,7 @@
   --bin-green: oklch(0.6 0.15 150);
   --bin-blue: oklch(0.55 0.15 245);
   --bin-red: oklch(0.58 0.2 27);
-  --bin-black: oklch(0.42 0.02 240);
+  --bin-black: oklch(0.72 0.02 240);
   --gradient-ocean: linear-gradient(135deg, oklch(0.55 0.12 215), oklch(0.72 0.13 185) 60%, oklch(0.86 0.11 165));
   --shadow-soft: 0 20px 60px -24px color-mix(in oklab, var(--primary) 45%, transparent);
   --chart-1: oklch(0.6 0.15 150);
