@@ -1,4 +1,5 @@
 import type { ScanResult } from "./classify.functions";
+import { z } from "zod";
 
 export type Scan = ScanResult & { id: string; image: string; createdAt: number };
 export type User = { email: string; name: string; provider: "email" | "google" };
@@ -6,6 +7,19 @@ export type User = { email: string; name: string; provider: "email" | "google" }
 const SESSION = "ecolens.session";
 const USERS = "ecolens_registered_users";
 const histKey = (email: string) => `ecolens.history.${email.toLowerCase()}`;
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const userSchema = z.object({ email: z.string().email(), name: z.string().min(1), provider: z.enum(["email", "google"]) });
+const accountSchema = userSchema.extend({ password: z.string().nullable(), provider: z.enum(["email", "google"]).optional() });
+const scanSchema = z.object({
+  id: z.string(), image: z.string().startsWith("data:image/"), createdAt: z.number().finite(),
+  item: z.string(), category: z.enum(["organic", "recyclable", "hazardous", "ewaste", "residual"]),
+  bin: z.string(), confidence: z.number().min(0).max(100), reasoning: z.string(), steps: z.array(z.string()),
+});
+
+function write(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch { throw new Error("Browser storage is unavailable or full. Please allow storage and try again."); }
+}
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -16,38 +30,58 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
-export const getSession = () => read<User | null>(SESSION, null);
+export const getSession = (): User | null => {
+  const parsed = userSchema.safeParse(read<unknown>(SESSION, null));
+  if (!parsed.success) return null;
+  const account = accounts().find((u) => normalizeEmail(u.email) === normalizeEmail(parsed.data.email));
+  return account ? { email: normalizeEmail(account.email), name: account.name, provider: account.provider ?? "email" } : null;
+};
 export const setSession = (u: User | null) =>
-  u ? localStorage.setItem(SESSION, JSON.stringify(u)) : localStorage.removeItem(SESSION);
+  u ? write(SESSION, userSchema.parse(u)) : localStorage.removeItem(SESSION);
 
-type Account = { email: string; name: string; password: string | null; provider?: "email" | "google" };
+type Account = z.infer<typeof accountSchema>;
+function accounts(): Account[] {
+  const raw = read<unknown>(USERS, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => { const parsed = accountSchema.safeParse(entry); return parsed.success ? [parsed.data] : []; });
+}
 export function signUp(name: string, email: string, password: string): User {
-  const users = read<Account[]>(USERS, []);
-  if (users.some((u) => u.email.toLowerCase() === email.toLowerCase()))
+  const em = normalizeEmail(email);
+  if (!z.string().email().safeParse(em).success) throw new Error("Enter a valid email address.");
+  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+  const users = accounts();
+  if (users.some((u) => normalizeEmail(u.email) === em))
     throw new Error("An account with this email already exists.");
-  users.push({ name, email: email.toLowerCase(), password, provider: "email" });
-  localStorage.setItem(USERS, JSON.stringify(users));
-  return { name, email, provider: "email" };
+  const displayName = name.trim() || em.split("@")[0] || "User";
+  users.push({ name: displayName, email: em, password, provider: "email" });
+  write(USERS, users);
+  return { name: displayName, email: em, provider: "email" };
 }
 export function logIn(email: string, password: string): User {
-  const u = read<Account[]>(USERS, []).find((x) => x.email.toLowerCase() === email.toLowerCase());
+  const u = accounts().find((x) => normalizeEmail(x.email) === normalizeEmail(email));
   if (!u || u.password === null || u.password !== password)
     throw new Error("Account not registered or invalid password. Please sign up first.");
-  return { name: u.name, email: u.email, provider: "email" };
+  return { name: u.name, email: normalizeEmail(u.email), provider: "email" };
 }
 
-export function googleLogin(name: string, email: string): User {
-  const users = read<Account[]>(USERS, []);
-  const em = email.toLowerCase();
-  const existing = users.find((x) => x.email.toLowerCase() === em);
+// Requested browser-only shortcut; this does not verify a Google identity.
+export function googleLogin(): User {
+  const name = "Jashika Rajasekaran";
+  const em = "jashika.student@gmail.com";
+  const users = accounts();
+  const existing = users.find((x) => normalizeEmail(x.email) === em);
   if (!existing) {
     users.push({ name, email: em, password: null, provider: "google" });
-    localStorage.setItem(USERS, JSON.stringify(users));
+    write(USERS, users);
   }
   return { name: existing?.name ?? name, email: em, provider: "google" };
 }
 
-export const getHistory = (email: string) => read<Scan[]>(histKey(email), []);
+export const getHistory = (email: string): Scan[] => {
+  const raw = read<unknown>(histKey(normalizeEmail(email)), []);
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => { const parsed = scanSchema.safeParse(entry); return parsed.success ? [parsed.data] : []; });
+};
 export function addScan(email: string, scan: Scan): Scan[] {
   let list = [scan, ...getHistory(email)];
   // keep within localStorage quota by trimming the oldest scans
@@ -59,7 +93,7 @@ export function addScan(email: string, scan: Scan): Scan[] {
       list = list.slice(0, -1);
     }
   }
-  return list;
+  throw new Error("This scan could not be saved because browser storage is unavailable or full.");
 }
 
 export const BINS = {
