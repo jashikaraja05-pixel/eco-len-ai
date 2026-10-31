@@ -7,7 +7,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { classifyWaste, type ScanResult } from "@/lib/classify.functions";
 import {
   BINS, addScan, googleLogin, getHistory, getSession, logIn, setSession, signUp, stats, type Scan, type User,
@@ -50,7 +49,7 @@ function App() {
     toast.success(`Welcome, ${u.name}`);
   };
   const logout = () => {
-    setSession(null);
+    try { setSession(null); } catch { toast.error("Could not clear your saved session. Please allow browser storage and try again."); return; }
     setUser(null);
     setHistory([]);
   };
@@ -123,27 +122,18 @@ function Nav({ tab, setTab, user, onLogout }: { tab: Tab; setTab: (t: Tab) => vo
 }
 
 /* ---------------- Auth ---------------- */
-const DEMO_ACCOUNTS = [
-  { name: "Jashika Rajasekaran", email: "jashika.student@gmail.com" },
-  { name: "Demo Reviewer", email: "eco.reviewer@gmail.com" },
-];
-
 function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [google, setGoogle] = useState(false);
-  const [gEmail, setGEmail] = useState("");
-  const pickGoogle = (name: string, em: string) => {
-    setGoogle(false);
-    setGEmail("");
-    onLogin(googleLogin(name, em));
+  const continueWithGoogle = () => {
+    try { onLogin(googleLogin()); }
+    catch (err) { toast.error((err as Error).message); }
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (password.length < 6) throw new Error("Password must be at least 6 characters.");
       onLogin(mode === "signup" ? signUp(email.split("@")[0] ?? "User", email.trim(), password) : logIn(email.trim(), password));
     } catch (err) {
       toast.error((err as Error).message);
@@ -157,50 +147,25 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           <div className="mb-5 flex justify-center"><Brand /></div>
           <div className="grid grid-cols-2 rounded-full bg-muted p-1">
             {(["login", "signup"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)}
+              <Button variant="ghost" key={m} type="button" onClick={() => setMode(m)}
                 className={`rounded-full py-2 text-sm font-semibold transition-all ${mode === m ? "bg-primary text-primary-foreground glow" : "text-muted-foreground hover:text-foreground"}`}>
                 {m === "login" ? "Log In" : "Sign Up"}
-              </button>
+              </Button>
             ))}
           </div>
           <h2 className="mt-6 text-xl font-bold sm:text-2xl">{mode === "login" ? "Welcome back" : "Create your account"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Track your segregation impact over time.</p>
           <form onSubmit={submit} className="mt-6 space-y-3">
-            <Input className="h-11 rounded-xl" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Input className="h-11 rounded-xl" type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input className="h-11 rounded-xl" aria-label="Email" autoComplete="email" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input className="h-11 rounded-xl" aria-label="Password" autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <Button type="submit" className="glow h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
           </form>
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
-          <Button variant="outline" className="h-11 w-full rounded-xl" onClick={() => setGoogle(true)}>
+          <Button variant="outline" className="h-11 w-full rounded-xl" onClick={continueWithGoogle}>
             <GoogleIcon /> Continue with Google
           </Button>
         </div>
       </div>
-      <Dialog open={google} onOpenChange={setGoogle}>
-        <DialogContent className="rounded-3xl sm:max-w-sm">
-          <DialogHeader className="items-center text-center">
-            <GoogleIcon />
-            <DialogTitle>Choose an account</DialogTitle>
-            <DialogDescription>to continue to EcoLens AI</DialogDescription>
-          </DialogHeader>
-          <div className="divide-y rounded-2xl border">
-            {DEMO_ACCOUNTS.map((a) => (
-              <button key={a.email} onClick={() => pickGoogle(a.name, a.email)}
-                className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-secondary">
-                <span className="bg-ocean grid size-9 place-items-center rounded-full text-sm font-bold text-primary-foreground">{a.name[0]}</span>
-                <span><span className="block text-sm font-medium">{a.name}</span><span className="block text-xs text-muted-foreground">{a.email}</span></span>
-              </button>
-            ))}
-          </div>
-          <form onSubmit={(e) => { e.preventDefault(); const em = gEmail.trim().toLowerCase(); if (!/^[^\s@]+@gmail\.com$/.test(em)) { toast.error("Enter a valid Google (@gmail.com) address."); return; } pickGoogle(em.split("@")[0] ?? "User", em); }} className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Use another account</p>
-            <div className="flex gap-2">
-              <Input className="h-10 rounded-xl" type="email" placeholder="you@gmail.com" value={gEmail} onChange={(e) => setGEmail(e.target.value)} />
-              <Button type="submit" className="h-10 rounded-xl">Next</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -225,7 +190,9 @@ function shrink(src: string, max = 768): Promise<string> {
       const c = document.createElement("canvas");
       c.width = Math.round(img.width * s);
       c.height = Math.round(img.height * s);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      const context = c.getContext("2d");
+      if (!context) { rej(new Error("Image processing is unavailable.")); return; }
+      context.drawImage(img, 0, 0, c.width, c.height);
       res(c.toDataURL("image/jpeg", 0.82));
     };
     img.onerror = () => rej(new Error("Could not read this image."));
@@ -266,7 +233,9 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
     if (!v) return;
     const c = document.createElement("canvas");
     c.width = v.videoWidth; c.height = v.videoHeight;
-    c.getContext("2d")!.drawImage(v, 0, 0);
+    const context = c.getContext("2d");
+    if (!context || !v.videoWidth || !v.videoHeight) { toast.error("Camera is not ready yet."); return; }
+    context.drawImage(v, 0, 0);
     setImage(await shrink(c.toDataURL("image/jpeg", 0.9)));
     stopCam();
   };
