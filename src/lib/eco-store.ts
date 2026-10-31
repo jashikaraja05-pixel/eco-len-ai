@@ -39,7 +39,7 @@ export const getSession = (): User | null => {
 export const setSession = (u: User | null) =>
   u ? write(SESSION, userSchema.parse(u)) : localStorage.removeItem(SESSION);
 
-type Account = { email: string; name: string; password: string | null; provider?: "email" | "google" };
+type Account = z.infer<typeof accountSchema>;
 function accounts(): Account[] {
   const raw = read<unknown>(USERS, []);
   if (!Array.isArray(raw)) return [];
