@@ -10,4 +10,6 @@
 <!-- LOVABLE:END -->
 
 - The local account/session/history store validates persisted values before exposing them to the UI, because malformed browser storage must not crash the application.
-- The Google-labelled primary-account entry is an explicitly requested browser-only shortcut, not OAuth; never represent it as verified identity or production-secure authentication.
+- Browser-only email/password profiles are not production-secure authentication; validate sessions against registered email accounts and never admit passwordless shortcut profiles.
+- Keep the React interface in one route file, with browser storage and secret-backed classification isolated in their existing helpers for safe execution boundaries.
+- Derive dashboard statistics from validated user history; fail a full-history save explicitly rather than silently deleting older scans.

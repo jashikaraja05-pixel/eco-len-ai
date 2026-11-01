@@ -1,4 +1,4 @@
-# EcoLens update
-- [x] Remove the Google account picker and open the primary account dashboard directly.
-- [x] Validate browser-saved accounts, sessions, and scan history without changing the requested storage approach.
-- [x] Test strict email/password rules, direct entry, logout, and screen sizes.
+# EcoLens email-only update
+- [ ] Remove all Google/demo entry and enforce registered email/password sign-in with the requested alert.
+- [ ] Use the requested account and per-email scan keys, preserving existing email users and histories.
+- [ ] Test per-user history, five counters, logout/re-entry, upload/camera controls, and screen sizes.
