@@ -196,21 +196,36 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const operationRef = useRef(0);
+  const cameraRequestRef = useRef(0);
+  const analyzingRef = useRef(false);
 
   const stopCam = () => {
+    cameraRequestRef.current += 1;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCamOn(false);
   };
-  useEffect(() => stopCam, []);
+  useEffect(() => () => { operationRef.current += 1; stopCam(); }, []);
 
   const startCam = async () => {
+    stopCam();
+    const request = cameraRequestRef.current;
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      if (request !== cameraRequestRef.current) { s.getTracks().forEach((t) => t.stop()); return; }
       streamRef.current = s;
       setCamOn(true);
-      requestAnimationFrame(() => { if (videoRef.current) { videoRef.current.srcObject = s; void videoRef.current.play(); } });
+      requestAnimationFrame(() => {
+        if (request !== cameraRequestRef.current) return;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          void videoRef.current.play().catch(() => { stopCam(); toast.error("Camera preview could not start."); });
+        }
+      });
     } catch {
+      if (request !== cameraRequestRef.current) return;
       toast.error("Camera access was denied or is unavailable.");
     }
   };
@@ -228,28 +243,43 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
   };
 
   const onFile = (f?: File) => {
-    if (!f) return;
+    if (!f || analyzingRef.current) return;
     if (!f.type.startsWith("image/")) { toast.error("Please choose an image file."); return; }
+    const operation = ++operationRef.current;
+    setImage(null); setResult(null);
     const r = new FileReader();
-    r.onload = async () => { try { setImage(await shrink(r.result as string)); setResult(null); } catch (e) { toast.error((e as Error).message); } };
+    r.onload = async () => {
+      try {
+        if (typeof r.result !== "string") throw new Error("Could not read this image.");
+        const processed = await shrink(r.result);
+        if (operation === operationRef.current) setImage(processed);
+      } catch (e) { if (operation === operationRef.current) toast.error((e as Error).message); }
+    };
+    r.onerror = () => { if (operation === operationRef.current) toast.error("Could not read this image."); };
     r.readAsDataURL(f);
   };
 
   const analyze = async () => {
-    if (!image) return;
+    if (!image || analyzingRef.current) return;
+    const operation = ++operationRef.current;
+    analyzingRef.current = true;
     setLoading(true);
     try {
       const res = await classifyWaste({ data: { image } });
-      setResult(res);
+      if (operation !== operationRef.current) return;
       onSaved({ ...res, image, id: crypto.randomUUID(), createdAt: Date.now() });
+      setResult(res);
     } catch (e) {
-      toast.error((e as Error).message || "Analysis failed. Please try again.");
+      if (operation === operationRef.current) toast.error((e as Error).message || "Analysis failed. Please try again.");
     } finally {
-      setLoading(false);
+      analyzingRef.current = false;
+      if (operation === operationRef.current) setLoading(false);
     }
   };
 
   const reset = () => {
+    if (analyzingRef.current) return;
+    operationRef.current += 1;
     stopCam();
     setImage(null);
     setResult(null);
@@ -272,11 +302,11 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
         <div className="glass rounded-3xl p-6">
           <div className="mb-5 grid grid-cols-2 rounded-full bg-muted p-1">
             {(["upload", "camera"] as const).map((m) => (
-              <button key={m} onClick={() => switchMode(m)}
+              <Button variant="ghost" disabled={loading} key={m} onClick={() => switchMode(m)}
                 className={`flex items-center justify-center gap-2 rounded-full py-2 text-sm font-medium transition-all ${mode === m ? "bg-card text-foreground shadow" : "text-muted-foreground"}`}>
                 {m === "upload" ? <Upload className="size-4" /> : <Camera className="size-4" />}
                 {m === "upload" ? "File Upload" : "Live Camera"}
-              </button>
+              </Button>
             ))}
           </div>
 
