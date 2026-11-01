@@ -2,14 +2,15 @@ import type { ScanResult } from "./classify.functions";
 import { z } from "zod";
 
 export type Scan = ScanResult & { id: string; image: string; createdAt: number };
-export type User = { email: string; name: string; provider: "email" | "google" };
+export type User = { email: string; name: string; provider: "email" };
 
 const SESSION = "ecolens.session";
-const USERS = "ecolens_registered_users";
-const histKey = (email: string) => `ecolens.history.${email.toLowerCase()}`;
+const USERS = "ecolens_users";
+const LEGACY_USERS = "ecolens_registered_users";
+const histKey = (email: string) => `ecolens_scans_${normalizeEmail(email)}`;
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
-const userSchema = z.object({ email: z.string().email(), name: z.string().min(1), provider: z.enum(["email", "google"]) });
-const accountSchema = userSchema.extend({ password: z.string().nullable(), provider: z.enum(["email", "google"]).optional() });
+const userSchema = z.object({ email: z.string().email(), name: z.string().min(1), provider: z.literal("email").default("email") });
+const accountSchema = userSchema.extend({ password: z.string().min(6) });
 const scanSchema = z.object({
   id: z.string(), image: z.string().startsWith("data:image/"), createdAt: z.number().finite(),
   item: z.string(), category: z.enum(["organic", "recyclable", "hazardous", "ewaste", "residual"]),
@@ -41,9 +42,12 @@ export const setSession = (u: User | null) =>
 
 type Account = z.infer<typeof accountSchema>;
 function accounts(): Account[] {
-  const raw = read<unknown>(USERS, []);
+  // Migrate only validated email/password profiles, never old shortcuts.
+  const raw = localStorage.getItem(USERS) === null ? read<unknown>(LEGACY_USERS, []) : read<unknown>(USERS, []);
   if (!Array.isArray(raw)) return [];
-  return raw.flatMap((entry) => { const parsed = accountSchema.safeParse(entry); return parsed.success ? [parsed.data] : []; });
+  const valid = raw.flatMap((entry) => { const parsed = accountSchema.safeParse(entry); return parsed.success ? [{ ...parsed.data, email: normalizeEmail(parsed.data.email) }] : []; });
+  if (localStorage.getItem(USERS) === null && valid.length) write(USERS, valid);
+  return valid;
 }
 export function signUp(name: string, email: string, password: string): User {
   const em = normalizeEmail(email);
@@ -59,41 +63,24 @@ export function signUp(name: string, email: string, password: string): User {
 }
 export function logIn(email: string, password: string): User {
   const u = accounts().find((x) => normalizeEmail(x.email) === normalizeEmail(email));
-  if (!u || u.password === null || u.password !== password)
-    throw new Error("Account not registered or invalid password. Please sign up first.");
+  if (!u || u.password !== password)
+    throw new Error("Account not found. Please sign up first.");
   return { name: u.name, email: normalizeEmail(u.email), provider: "email" };
 }
 
-// Requested browser-only shortcut; this does not verify a Google identity.
-export function googleLogin(): User {
-  const name = "Jashika Rajasekaran";
-  const em = "jashika.student@gmail.com";
-  const users = accounts();
-  const existing = users.find((x) => normalizeEmail(x.email) === em);
-  if (!existing) {
-    users.push({ name, email: em, password: null, provider: "google" });
-    write(USERS, users);
-  }
-  return { name: existing?.name ?? name, email: em, provider: "google" };
-}
-
 export const getHistory = (email: string): Scan[] => {
-  const raw = read<unknown>(histKey(normalizeEmail(email)), []);
+  const key = histKey(email);
+  const legacy = localStorage.getItem(key) === null;
+  const raw = read<unknown>(legacy ? `ecolens.history.${normalizeEmail(email)}` : key, []);
   if (!Array.isArray(raw)) return [];
-  return raw.flatMap((entry) => { const parsed = scanSchema.safeParse(entry); return parsed.success ? [parsed.data] : []; });
+  const valid = raw.flatMap((entry) => { const parsed = scanSchema.safeParse(entry); return parsed.success ? [parsed.data] : []; });
+  if (legacy && valid.length) write(key, valid);
+  return valid;
 };
 export function addScan(email: string, scan: Scan): Scan[] {
-  let list = [scan, ...getHistory(email)];
-  // keep within localStorage quota by trimming the oldest scans
-  while (list.length) {
-    try {
-      localStorage.setItem(histKey(email), JSON.stringify(list));
-      return list;
-    } catch {
-      list = list.slice(0, -1);
-    }
-  }
-  throw new Error("This scan could not be saved because browser storage is unavailable or full.");
+  const list = [scanSchema.parse(scan), ...getHistory(email)];
+  write(histKey(email), list);
+  return list;
 }
 
 export const BINS = {
