@@ -64,7 +64,7 @@ export function signUp(name: string, email: string, password: string): User {
 export function logIn(email: string, password: string): User {
   const u = accounts().find((x) => normalizeEmail(x.email) === normalizeEmail(email));
   if (!u || u.password !== password)
-    throw new Error("Account not found. Please sign up first.");
+    throw new Error("Account not registered or invalid password. Please sign up first.");
   return { name: u.name, email: normalizeEmail(u.email), provider: "email" };
 }
 
@@ -81,6 +81,21 @@ export function addScan(email: string, scan: Scan): Scan[] {
   const list = [scanSchema.parse(scan), ...getHistory(email)];
   write(histKey(email), list);
   return list;
+}
+export function deleteScan(email: string, id: string): Scan[] {
+  const list = getHistory(email).filter((s) => s.id !== id);
+  write(histKey(email), list);
+  return list;
+}
+export function clearHistory(email: string): Scan[] {
+  localStorage.removeItem(histKey(email));
+  return [];
+}
+export function deleteAccount(email: string) {
+  const em = normalizeEmail(email);
+  write(USERS, accounts().filter((u) => normalizeEmail(u.email) !== em));
+  localStorage.removeItem(histKey(em));
+  localStorage.removeItem(SESSION);
 }
 
 export const BINS = {
