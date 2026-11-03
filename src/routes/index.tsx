@@ -2,14 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Leaf, LogOut, ScanLine, LayoutDashboard, History, BookOpen, Upload, Camera, RotateCcw,
-  Loader2, Sparkles, CheckCircle2, Recycle, AlertTriangle, Trash2, Cpu,
+  Loader2, Sparkles, CheckCircle2, Recycle, AlertTriangle, Trash2, Cpu, UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { classifyWaste, type ScanResult } from "@/lib/classify.functions";
 import {
-  BINS, addScan, getHistory, getSession, logIn, setSession, signUp, stats, type Scan, type User,
+  BINS, addScan, clearHistory, deleteAccount, deleteScan, getHistory, getSession, logIn,
+  setSession, signUp, stats, type Scan, type User,
 } from "@/lib/eco-store";
 
 export const Route = createFileRoute("/")({
@@ -56,20 +57,39 @@ function App() {
     setUser(null);
     setHistory([]);
   };
+  const removeScan = (id: string) => {
+    if (!user) return;
+    try { setHistory(deleteScan(user.email, id)); toast.success("Scan deleted."); }
+    catch (err) { toast.error((err as Error).message); }
+  };
+  const clearAll = () => {
+    if (!user || !window.confirm("Delete your entire scan history? This cannot be undone.")) return;
+    try { setHistory(clearHistory(user.email)); toast.success("History cleared."); }
+    catch (err) { toast.error((err as Error).message); }
+  };
+  const removeAccount = () => {
+    if (!user || !window.confirm("Delete your account, credentials and all saved scans? This cannot be undone.")) return;
+    try {
+      deleteAccount(user.email);
+      setUser(null);
+      setHistory([]);
+      toast.success("Your account has been deleted.");
+    } catch (err) { toast.error((err as Error).message); }
+  };
 
   if (!ready) return null;
   if (!user) return <AuthScreen onLogin={login} />;
 
   return (
     <div className="min-h-screen">
-      <Nav tab={tab} setTab={setTab} user={user} onLogout={logout} />
+      <Nav tab={tab} setTab={setTab} user={user} onLogout={logout} onDeleteAccount={removeAccount} />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div key={tab} className="fade-up">
           {tab === "scan" && (
             <Scanner onSaved={(s) => setHistory(addScan(user.email, s))} />
           )}
           {tab === "dashboard" && <Dashboard history={history} />}
-          {tab === "history" && <HistoryView history={history} />}
+          {tab === "history" && <HistoryView history={history} onDelete={removeScan} onClearAll={clearAll} />}
           {tab === "learn" && <Learn />}
         </div>
       </main>
