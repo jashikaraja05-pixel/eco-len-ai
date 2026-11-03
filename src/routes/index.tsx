@@ -109,7 +109,7 @@ function Brand() {
   );
 }
 
-function Nav({ tab, setTab, user, onLogout }: { tab: Tab; setTab: (t: Tab) => void; user: User; onLogout: () => void }) {
+function Nav({ tab, setTab, user, onLogout, onDeleteAccount }: { tab: Tab; setTab: (t: Tab) => void; user: User; onLogout: () => void; onDeleteAccount: () => void }) {
   const items: { id: Tab; label: string; icon: typeof Leaf }[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "scan", label: "Scan Waste", icon: ScanLine },
@@ -133,8 +133,11 @@ function Nav({ tab, setTab, user, onLogout }: { tab: Tab; setTab: (t: Tab) => vo
             </Button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-sm text-muted-foreground md:inline">{user.email}</span>
+          <Button variant="outline" size="sm" className="rounded-full text-destructive hover:text-destructive" onClick={onDeleteAccount}>
+            <UserX className="size-4" /> <span className="hidden sm:inline">Delete Account</span>
+          </Button>
           <Button variant="outline" size="sm" className="rounded-full" onClick={onLogout}>
             <LogOut className="size-4" /> Log Out
           </Button>
@@ -440,18 +443,33 @@ function Dashboard({ history }: { history: Scan[] }) {
 }
 
 /* ---------------- History ---------------- */
-function HistoryView({ history }: { history: Scan[] }) {
+function HistoryView({ history, onDelete, onClearAll }: { history: Scan[]; onDelete: (id: string) => void; onClearAll: () => void }) {
   return (
     <section>
-      <h1 className="text-3xl font-bold">Scan History</h1>
-      <p className="mt-1 text-muted-foreground">{history.length} scan{history.length === 1 ? "" : "s"} saved to your account.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Scan History</h1>
+          <p className="mt-1 text-muted-foreground">{history.length} scan{history.length === 1 ? "" : "s"} saved to your account.</p>
+        </div>
+        {history.length > 0 && (
+          <Button variant="outline" className="rounded-full text-destructive hover:text-destructive" onClick={onClearAll}>
+            <Trash2 className="size-4" /> Clear All History
+          </Button>
+        )}
+      </div>
       {history.length === 0 ? (
         <div className="glass mt-6 rounded-3xl p-10 text-center text-muted-foreground">No scans yet — head to Scan Waste to start.</div>
       ) : (
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {history.map((h) => (
             <article key={h.id} className="glass overflow-hidden rounded-3xl">
-              <img src={h.image} alt={h.item} className="aspect-video w-full object-cover" />
+              <div className="relative">
+                <img src={h.image} alt={h.item} className="aspect-video w-full object-cover" />
+                <Button variant="destructive" size="icon" aria-label={`Delete scan of ${h.item}`}
+                  className="absolute right-3 top-3 size-9 rounded-full shadow-md" onClick={() => onDelete(h.id)}>
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
               <div className="p-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <CategoryBadge c={h.category} />
