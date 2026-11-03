@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSession, setSession, signUp, logIn, addScan, getHistory, stats, BINS, type Scan } from "@/lib/eco-store";
+import { getSession, setSession, signUp, logIn, addScan, deleteScan, clearHistory, deleteAccount, getHistory, stats, BINS, type Scan } from "@/lib/eco-store";
 
 describe("EcoLens browser accounts", () => {
   beforeEach(() => localStorage.clear());
@@ -11,7 +11,7 @@ describe("EcoLens browser accounts", () => {
     expect(logIn("STUDENT@example.com", "secret123").name).toBe("Student");
   });
   it("blocks unregistered accounts and incorrect passwords", () => {
-    const error = "Account not found. Please sign up first.";
+    const error = "Account not registered or invalid password. Please sign up first.";
     expect(() => logIn("missing@example.com", "secret123")).toThrow(error);
     signUp("Student", "student@example.com", "secret123");
     expect(() => logIn("student@example.com", "wrong")).toThrow(error);
@@ -26,7 +26,7 @@ describe("EcoLens browser accounts", () => {
     localStorage.setItem("ecolens_registered_users", JSON.stringify([shortcut]));
     localStorage.setItem("ecolens.session", JSON.stringify(shortcut));
     expect(getSession()).toBeNull();
-    expect(() => logIn(shortcut.email, "anything")).toThrow("Account not found. Please sign up first.");
+    expect(() => logIn(shortcut.email, "anything")).toThrow("Account not registered or invalid password. Please sign up first.");
   });
   it("clears the active session on logout", () => {
     setSession(signUp("Student", "student@example.com", "secret123"));
@@ -85,5 +85,28 @@ describe("EcoLens browser accounts", () => {
   });
   it.each([["organic", "Green Bin"], ["hazardous", "Red Bin"], ["ewaste", "Red Bin"], ["residual", "Black Bin"]] as const)("maps %s to %s", (category, bin) => {
     expect(BINS[category].bin).toBe(bin);
+  });
+  it("deletes a single scan and keeps the rest", () => {
+    addScan("student@example.com", scan);
+    addScan("student@example.com", { ...scan, id: "scan-2" });
+    expect(deleteScan("student@example.com", "scan-1")).toEqual([{ ...scan, id: "scan-2" }]);
+    expect(getHistory("student@example.com")).toEqual([{ ...scan, id: "scan-2" }]);
+  });
+  it("clears all history for one user only", () => {
+    addScan("a@example.com", scan);
+    addScan("b@example.com", scan);
+    expect(clearHistory("a@example.com")).toEqual([]);
+    expect(getHistory("a@example.com")).toEqual([]);
+    expect(getHistory("b@example.com")).toEqual([scan]);
+  });
+  it("deletes an account with its credentials, history and session", () => {
+    const user = signUp("Student", "student@example.com", "secret123");
+    setSession(user);
+    addScan("student@example.com", scan);
+    deleteAccount("student@example.com");
+    expect(getSession()).toBeNull();
+    expect(getHistory("student@example.com")).toEqual([]);
+    expect(() => logIn("student@example.com", "secret123")).toThrow("Account not registered or invalid password. Please sign up first.");
+    expect(JSON.parse(localStorage.getItem("ecolens_users") ?? "[]")).toEqual([]);
   });
 });
