@@ -27,6 +27,16 @@ export const assessmentSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("uncertain"), message: z.string().trim().min(1).max(500) }),
 ]);
 export type Assessment = z.infer<typeof assessmentSchema>;
+export const UNCERTAINTY_THRESHOLD = 55;
+export function validateAssessment(value: unknown): Assessment {
+  const assessment = assessmentSchema.parse(value);
+  if (assessment.status === "uncertain") return assessment;
+  const result = assessment.result;
+  if (result.confidence === null || result.confidence < UNCERTAINTY_THRESHOLD) {
+    return { status: "uncertain", message: "The item could not be identified confidently. Try a clearer photo of one item; keep possible hazardous waste separate." };
+  }
+  return { status: "classified", result: { ...result, bin: recommendedBins[result.category], source: "gateway" } };
+}
 
 export const recommendedBins = {
   organic: "Green Bin (Organic / Wet Waste)",
