@@ -13,3 +13,5 @@
 - Browser-only email/password profiles are not production-secure authentication; validate sessions against registered email accounts and never admit passwordless shortcut profiles.
 - Keep the React interface in one route file, with browser storage and secret-backed classification isolated in their existing helpers for safe execution boundaries.
 - Derive dashboard statistics from validated user history; fail a full-history save explicitly rather than silently deleting older scans.
+- Browser passwords use salted Web Crypto PBKDF2 digests and upgrade legacy plaintext only after successful login; this reduces exposure without claiming browser profiles are trusted server authentication.
+- Classification uses the AI Gateway SDK inside the server handler and the shared assessment schema; invalid or uncertain results must never become saved classifications.
