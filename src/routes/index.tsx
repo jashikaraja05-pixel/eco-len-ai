@@ -1,3 +1,5 @@
+import { useServerFn } from "@tanstack/react-start";
+import { imageSchema } from "@/lib/scan-schema";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -153,15 +155,18 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     try {
-      onLogin(mode === "signup" ? signUp(email.split("@")[0] ?? "User", email.trim(), password) : logIn(email.trim(), password));
+      onLogin(mode === "signup" ? await signUp(email.split("@")[0] ?? "User", email.trim(), password) : await logIn(email.trim(), password));
     } catch (err) {
       setError((err as Error).message);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -171,7 +176,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           <div className="mb-5 flex justify-center"><Brand /></div>
           <div className="grid grid-cols-2 rounded-full bg-muted p-1">
             {(["login", "signup"] as const).map((m) => (
-              <Button variant="ghost" key={m} type="button" onClick={() => { setMode(m); setError(null); }}
+              <Button variant="ghost" disabled={submitting} key={m} type="button" onClick={() => { setMode(m); setError(null); }}
                 className={`rounded-full py-2 text-sm font-semibold transition-all ${mode === m ? "bg-primary text-primary-foreground glow" : "text-muted-foreground hover:text-foreground"}`}>
                 {m === "login" ? "Log In" : "Sign Up"}
               </Button>
@@ -182,7 +187,7 @@ function AuthScreen({ onLogin }: { onLogin: (u: User) => void }) {
           <form onSubmit={submit} className="mt-6 space-y-3">
             <Input className="h-11 rounded-xl" aria-label="Email" autoComplete="email" type="email" required placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input className="h-11 rounded-xl" aria-label="Password" autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" required placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <Button type="submit" className="glow h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
+            <Button type="submit" disabled={submitting} className="glow h-11 w-full rounded-xl">{mode === "login" ? "Log In" : "Create Account"}</Button>
             {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           </form>
         </div>
@@ -211,6 +216,8 @@ function shrink(src: string, max = 768): Promise<string> {
 }
 
 function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
+  const classify = useServerFn(classifyWaste);
+  const [uncertain, setUncertain] = useState<string | null>(null);
   const [mode, setMode] = useState<"upload" | "camera">("upload");
   const [image, setImage] = useState<string | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -261,20 +268,24 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
     const context = c.getContext("2d");
     if (!context || !v.videoWidth || !v.videoHeight) { toast.error("Camera is not ready yet."); return; }
     context.drawImage(v, 0, 0);
-    setImage(await shrink(c.toDataURL("image/jpeg", 0.9)));
-    stopCam();
+    const operation = ++operationRef.current;
+    try {
+      const processed = imageSchema.parse(await shrink(c.toDataURL("image/jpeg", 0.9)));
+      if (operation === operationRef.current) { setImage(processed); stopCam(); }
+    } catch { if (operation === operationRef.current) toast.error("Could not process the camera image. Please try again."); }
   };
 
   const onFile = (f?: File) => {
     if (!f || analyzingRef.current) return;
-    if (!f.type.startsWith("image/")) { toast.error("Please choose an image file."); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) { toast.error("Please choose a JPEG, PNG or WebP image."); return; }
+    if (f.size > 10 * 1024 * 1024) { toast.error("Please choose an image smaller than 10 MB."); return; }
     const operation = ++operationRef.current;
-    setImage(null); setResult(null);
+    setImage(null); setResult(null); setUncertain(null);
     const r = new FileReader();
     r.onload = async () => {
       try {
         if (typeof r.result !== "string") throw new Error("Could not read this image.");
-        const processed = await shrink(r.result);
+        const processed = imageSchema.parse(await shrink(r.result));
         if (operation === operationRef.current) setImage(processed);
       } catch (e) { if (operation === operationRef.current) toast.error((e as Error).message); }
     };
@@ -288,10 +299,14 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
     analyzingRef.current = true;
     setLoading(true);
     try {
-      const res = await classifyWaste({ data: { image } });
+      setUncertain(null);
+      const assessment = await classify({ data: { image } });
       if (operation !== operationRef.current) return;
-      onSaved({ ...res, image, id: crypto.randomUUID(), createdAt: Date.now() });
+      if (assessment.status === "uncertain") { setUncertain(assessment.message); return; }
+      const res = assessment.result;
       setResult(res);
+      try { onSaved({ ...res, image, id: crypto.randomUUID(), createdAt: Date.now() }); }
+      catch { toast.error("Classification completed, but could not be saved. Browser storage is unavailable or full."); }
     } catch (e) {
       if (operation === operationRef.current) toast.error((e as Error).message || "Analysis failed. Please try again.");
     } finally {
@@ -306,6 +321,7 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
     stopCam();
     setImage(null);
     setResult(null);
+    setUncertain(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -318,7 +334,7 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
           <h1 className="text-3xl font-bold">AI Waste Vision Scanner</h1>
           <p className="mt-1 text-muted-foreground">Upload or capture a photo — we'll tell you which bin it goes in.</p>
         </div>
-        {result && <Button onClick={reset} size="lg" className="fade-up rounded-full"><RotateCcw className="size-4" /> New Scan</Button>}
+        {(result || uncertain) && <Button onClick={reset} size="lg" className="fade-up rounded-full"><RotateCcw className="size-4" /> New Scan</Button>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -356,7 +372,7 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
               </div>
             )}
           </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
 
           <div className="mt-5 flex gap-3">
             {mode === "camera" && camOn && !image && <Button className="flex-1 rounded-xl" onClick={capture}><Camera className="size-4" /> Capture</Button>}
@@ -372,7 +388,7 @@ function Scanner({ onSaved }: { onSaved: (s: Scan) => void }) {
         {result ? <ResultCard r={result} /> : (
           <div className="glass flex flex-col items-center justify-center rounded-3xl p-10 text-center text-muted-foreground">
             <ScanLine className="size-12 text-primary" />
-            <p className="mt-4 max-w-xs">Your classification, confidence score and disposal steps will appear here.</p>
+            <p role={uncertain ? "status" : undefined} className="mt-4 max-w-xs">{uncertain ?? "Your classification, confidence score and disposal steps will appear here."}</p>
           </div>
         )}
       </div>
@@ -393,8 +409,8 @@ function ResultCard({ r }: { r: ScanResult }) {
       <div className="mt-3"><CategoryBadge c={r.category} /></div>
       <p className="mt-2 text-sm font-medium text-primary">{r.bin}</p>
       <div className="mt-5">
-        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Confidence</span><span className="font-semibold">{r.confidence}%</span></div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="bg-ocean h-full rounded-full transition-all duration-700" style={{ width: `${r.confidence}%` }} /></div>
+        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Confidence</span><span className="font-semibold">{r.confidence === null ? "Not available" : `${r.confidence}%`}</span></div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="bg-ocean h-full rounded-full transition-all duration-700" style={{ width: `${r.confidence === null ? "Not available" : `${r.confidence}%`}` }} /></div>
       </div>
       <div className="mt-5 rounded-2xl bg-secondary/70 p-4 text-sm"><p className="mb-1 font-semibold">Why this bin?</p><p className="text-secondary-foreground">{r.reasoning}</p></div>
       <p className="mt-5 font-semibold">Disposal guidance</p>
@@ -435,6 +451,12 @@ function Dashboard({ history }: { history: Scan[] }) {
           <p className="font-semibold">Category split</p>
           <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-muted">
             {cards.slice(1).map((c) => c.value > 0 && <div key={c.label} className={c.tone} style={{ width: `${(c.value / s.total) * 100}%` }} title={c.label} />)}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+            {Object.entries(BINS).map(([key, bin]) => {
+              const count = history.filter((scan) => scan.category === key).length;
+              return <span key={key}>{bin.label}: {count} ({Math.round(count / s.total * 100)}%)</span>;
+            })}
           </div>
         </div>
       )}
